@@ -10,6 +10,7 @@ import shutil
 
 from lib import transcriber, subsynthetizer, file_manager, webm_to_wav_converter, tts
 from lib import message_queue
+from lib import emotion_analyzer  # ← NOUVEAU
 
 app = Flask(__name__)
 CORS(app)
@@ -130,7 +131,19 @@ def handle_new_transcript(msg, ObjLlama):
             dest = backup_dir / item.name
             shutil.copy2(item, dest)
 
-    milo_wav = tts.myTTS.text_to_speech(file_manager.sub_resume_dir / "transcript_final_resume.txt", file_manager.milo_wav_response_dir)
+    # ========== ANALYSE ÉMOTIONNELLE (NOUVEAU) ==========
+    resume_file = file_manager.sub_resume_dir / "transcript_final_resume.txt"
+    emotion_data = emotion_analyzer.myEmotionAnalyzer.analyze_from_file(str(resume_file))
+    
+    # Envoie l'émotion au frontend AVANT l'audio
+    socketio.emit("emotion_update", {
+        "emotion": emotion_data["emotion"],
+        "intensity": emotion_data["intensite"]
+    })
+    print(f"[Backend] Émotion envoyée au frontend : {emotion_data}")
+    # ====================================================
+
+    milo_wav = tts.myTTS.text_to_speech(resume_file, file_manager.milo_wav_response_dir)
     milo_webm = webm_to_wav_converter.convert_to_webm(
         milo_wav,
         file_manager.milo_webm_response_dir
@@ -151,11 +164,20 @@ def handle_new_question(msg, ObjTranscriber):
 def handle_new_response(msg, ObjLlama):
     file_path = msg["filepath"]
     output_name=ObjLlama.generate_from_file(Path(file_path),True,file_manager.milo_response_dir)
-    milo_response_wav = tts.myTTS.text_to_speech(file_manager.milo_response_dir / output_name, file_manager.milo_wav_question_response_dir)
-    #milo_response_webm = webm_to_wav_converter.convert_to_webm(
-    #    milo_response_wav,
-    #    file_manager.milo_webm_question_response_dir
-    #)
+    
+    # ========== ANALYSE ÉMOTIONNELLE POUR QUESTION (NOUVEAU) ==========
+    response_file = file_manager.milo_response_dir / output_name
+    emotion_data = emotion_analyzer.myEmotionAnalyzer.analyze_from_file(str(response_file))
+    
+    # Envoie l'émotion au frontend AVANT l'audio
+    socketio.emit("emotion_update", {
+        "emotion": emotion_data["emotion"],
+        "intensity": emotion_data["intensite"]
+    })
+    print(f"[Backend] Émotion (question) envoyée : {emotion_data}")
+    # ==================================================================
+    
+    milo_response_wav = tts.myTTS.text_to_speech(response_file, file_manager.milo_wav_question_response_dir)
     socketio.emit("new_response_audio", {"filename": os.path.basename(milo_response_wav)})
 
 def setup_listeners():
@@ -170,6 +192,4 @@ if __name__ == "__main__":
     file_manager.create_final_transcript()
     setup_listeners()
     transcriber.myTranscrib.load_model()
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True, use_reloader=False)
-
-
+    socketio.run(app, host="0.0.0.0", port=5001, debug=True, use_reloader=False)

@@ -63,6 +63,16 @@ main {
     width: 400px;
     height: 400px;
     background: transparent;
+    position: absolute;
+    z-index: 1;
+}
+
+#face-canvas {
+    width: 400px;
+    height: 400px;
+    background: transparent;
+    position: absolute;
+    z-index: 2;
 }
 
 @font-face {
