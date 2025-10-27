@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Visage Milo</title>
+    <style>
+        body {
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        #face-canvas {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+        
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background-color: navy;
+            color: white;
+            transition: transform 0.1s;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+        
+        .joy { background-color: #4CAF50; }
+        .sad { background-color: #2196F3; }
+        .anger { background-color: #f44336; }
+        .think { background-color: #FF9800; }
+        .neutral { background-color: #9E9E9E; }
+        
+        h1 {
+            color: navy;
+            margin-bottom: 20px;
+        }
+        
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            max-width: 600px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Test du Visage Émotionnel de Milo</h1>
+    
+    <canvas id="face-canvas" width="400" height="400"></canvas>
+    
+    <div class="controls">
+        <button class="neutral" onclick="setMiloEmotion('neutre', 0.5)">😐 Neutre</button>
+        <button class="joy" onclick="setMiloEmotion('joyeux', 0.9)">😊 Joyeux</button>
+        <button class="sad" onclick="setMiloEmotion('triste', 0.8)">😢 Triste</button>
+        <button class="anger" onclick="setMiloEmotion('colere', 0.85)">😠 Colère</button>
+        <button class="think" onclick="setMiloEmotion('pensif', 0.7)">🤔 Pensif</button>
+    </div>
+    
+    <div class="info">
+        <p><strong>Instructions :</strong> Clique sur les boutons pour tester les différentes émotions</p>
+        <p>Le visage clignera automatiquement et passera d'une émotion à l'autre avec une transition douce</p>
+    </div>
+
+    <script>
+        // ===== CODE DU VISAGE (copié depuis face.js) =====
+        const faceCanvas = document.getElementById("face-canvas");
+        const faceCtx = faceCanvas.getContext("2d");
+
+        const centerX = faceCanvas.width / 2;
+        const centerY = faceCanvas.height / 2;
+
+        let currentEmotion = "neutre";
+        let emotionIntensity = 0.5;
+        let animationProgress = 0;
+
+        const face = {
+            leftEye: { x: centerX - 60, y: centerY - 40 },
+            rightEye: { x: centerX + 60, y: centerY - 40 },
+            eyeWidth: 30,
+            eyeHeight: 35,
+            
+            leftBrow: { x: centerX - 60, y: centerY - 80 },
+            rightBrow: { x: centerX + 60, y: centerY - 80 },
+            browLength: 40,
+            
+            mouth: { x: centerX, y: centerY + 60 },
+            mouthWidth: 80,
+            
+            nose: { x: centerX, y: centerY + 10 }
+        };
+
+        const emotions = {
+            neutre: {
+                eyeHeight: 35,
+                browAngle: 0,
+                browY: -80,
+                mouthCurve: 0,
+                blinkSpeed: 3000
+            },
+            joyeux: {
+                eyeHeight: 40,
+                browAngle: 5,
+                browY: -85,
+                mouthCurve: 30,
+                blinkSpeed: 2000
+            },
+            triste: {
+                eyeHeight: 30,
+                browAngle: -15,
+                browY: -75,
+                mouthCurve: -25,
+                blinkSpeed: 4000
+            },
+            colere: {
+                eyeHeight: 25,
+                browAngle: -25,
+                browY: -70,
+                mouthCurve: -15,
+                blinkSpeed: 1500
+            },
+            pensif: {
+                eyeHeight: 32,
+                browAngle: -8,
+                browY: -78,
+                mouthCurve: -5,
+                blinkSpeed: 3500
+            }
+        };
+
+        let isBlinking = false;
+        let blinkTimer = null;
+
+        function scheduleBlink() {
+            const config = emotions[currentEmotion] || emotions.neutre;
+            const delay = config.blinkSpeed + (Math.random() * 1000);
+            
+            clearTimeout(blinkTimer);
+            blinkTimer = setTimeout(() => {
+                blink();
+                scheduleBlink();
+            }, delay);
+        }
+
+        function blink() {
+            isBlinking = true;
+            setTimeout(() => {
+                isBlinking = false;
+            }, 150);
+        }
+
+        function drawFace() {
+            faceCtx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
+            
+            const config = emotions[currentEmotion] || emotions.neutre;
+            animationProgress += (1 - animationProgress) * 0.1;
+            
+            drawEyes(config);
+            drawEyebrows(config);
+            drawMouth(config);
+            drawNose();
+        }
+
+        function drawEyes(config) {
+            const eyeHeight = isBlinking ? 2 : config.eyeHeight * animationProgress + 35 * (1 - animationProgress);
+            
+            faceCtx.fillStyle = "rgb(0, 0, 128)";
+            
+            faceCtx.beginPath();
+            faceCtx.ellipse(face.leftEye.x, face.leftEye.y, face.eyeWidth / 2, eyeHeight / 2, 0, 0, 2 * Math.PI);
+            faceCtx.fill();
+            
+            faceCtx.beginPath();
+            faceCtx.ellipse(face.rightEye.x, face.rightEye.y, face.eyeWidth / 2, eyeHeight / 2, 0, 0, 2 * Math.PI);
+            faceCtx.fill();
+            
+            if (!isBlinking) {
+                faceCtx.fillStyle = "white";
+                const pupilSize = 6;
+                
+                faceCtx.beginPath();
+                faceCtx.arc(face.leftEye.x, face.leftEye.y, pupilSize, 0, 2 * Math.PI);
+                faceCtx.fill();
+                
+                faceCtx.beginPath();
+                faceCtx.arc(face.rightEye.x, face.rightEye.y, pupilSize, 0, 2 * Math.PI);
+                faceCtx.fill();
+            }
+        }
+
+        function drawEyebrows(config) {
+            faceCtx.strokeStyle = "rgb(0, 0, 128)";
+            faceCtx.lineWidth = 4;
+            faceCtx.lineCap = "round";
+            
+            const browY = config.browY * animationProgress + (-80) * (1 - animationProgress);
+            const angleRad = (config.browAngle * Math.PI / 180) * animationProgress;
+            
+            faceCtx.beginPath();
+            const leftStartX = face.leftBrow.x - face.browLength / 2;
+            const leftEndX = face.leftBrow.x + face.browLength / 2;
+            const leftStartY = face.leftBrow.y + browY - Math.tan(angleRad) * (face.browLength / 2);
+            const leftEndY = face.leftBrow.y + browY + Math.tan(angleRad) * (face.browLength / 2);
+            faceCtx.moveTo(leftStartX, leftStartY);
+            faceCtx.lineTo(leftEndX, leftEndY);
+            faceCtx.stroke();
+            
+            faceCtx.beginPath();
+            const rightStartX = face.rightBrow.x - face.browLength / 2;
+            const rightEndX = face.rightBrow.x + face.browLength / 2;
+            const rightStartY = face.rightBrow.y + browY + Math.tan(angleRad) * (face.browLength / 2);
+            const rightEndY = face.rightBrow.y + browY - Math.tan(angleRad) * (face.browLength / 2);
+            faceCtx.moveTo(rightStartX, rightStartY);
+            faceCtx.lineTo(rightEndX, rightEndY);
+            faceCtx.stroke();
+        }
+
+        function drawMouth(config) {
+            faceCtx.strokeStyle = "rgb(0, 0, 128)";
+            faceCtx.lineWidth = 4;
+            faceCtx.lineCap = "round";
+            
+            const mouthCurve = config.mouthCurve * animationProgress;
+            
+            faceCtx.beginPath();
+            
+            if (mouthCurve > 0) {
+                faceCtx.arc(face.mouth.x, face.mouth.y - mouthCurve, face.mouthWidth / 2, 0.2 * Math.PI, 0.8 * Math.PI);
+            } else if (mouthCurve < 0) {
+                faceCtx.arc(face.mouth.x, face.mouth.y - mouthCurve, face.mouthWidth / 2, 0.8 * Math.PI, 1.2 * Math.PI, true);
+            } else {
+                faceCtx.moveTo(face.mouth.x - face.mouthWidth / 2, face.mouth.y);
+                faceCtx.lineTo(face.mouth.x + face.mouthWidth / 2, face.mouth.y);
+            }
+            
+            faceCtx.stroke();
+        }
+
+        function drawNose() {
+            faceCtx.fillStyle = "rgb(0, 0, 128)";
+            faceCtx.beginPath();
+            faceCtx.arc(face.nose.x, face.nose.y, 3, 0, 2 * Math.PI);
+            faceCtx.fill();
+        }
+
+        function setMiloEmotion(emotion, intensity = 0.8) {
+            console.log(`😊 Changement d'émotion : ${emotion} (intensité: ${intensity})`);
+            
+            if (emotion === "confus") emotion = "pensif";
+            
+            if (!emotions[emotion]) {
+                console.warn(`⚠️ Émotion inconnue: ${emotion}, utilisation de "neutre"`);
+                emotion = "neutre";
+            }
+            
+            currentEmotion = emotion;
+            emotionIntensity = intensity;
+            animationProgress = 0;
+        }
+
+        function animate() {
+            drawFace();
+            requestAnimationFrame(animate);
+        }
+
+        scheduleBlink();
+        animate();
+        
+        window.setMiloEmotion = setMiloEmotion;
+    </script>
+</body>
+</html>
