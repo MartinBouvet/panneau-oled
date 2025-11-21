@@ -10,7 +10,6 @@ import shutil
 
 from lib import transcriber, subsynthetizer, file_manager, webm_to_wav_converter, tts
 from lib import message_queue
-from lib import emotion_analyzer  # ← NOUVEAU
 
 app = Flask(__name__)
 CORS(app)
@@ -121,7 +120,11 @@ def handle_new_audio_file(msg, ObjTranscriber):
 
 def handle_new_transcript(msg, ObjLlama):
     file_path = msg["filepath"]
-    ObjLlama.generate_from_file(Path(file_path))
+    # Génère la réponse ET l'émotion en un seul appel
+    result = ObjLlama.generate_from_file(Path(file_path), include_emotion=True)
+    
+    # result est maintenant un tuple (nom_fichier, emotion_dict)
+    output_name, emotion_data = result
 
     backup_dir= file_manager.backup_transcript
     backup_dir.mkdir(exist_ok=True, parents=True)
@@ -131,11 +134,8 @@ def handle_new_transcript(msg, ObjLlama):
             dest = backup_dir / item.name
             shutil.copy2(item, dest)
 
-    # ========== ANALYSE ÉMOTIONNELLE (NOUVEAU) ==========
-    resume_file = file_manager.sub_resume_dir / "transcript_final_resume.txt"
-    emotion_data = emotion_analyzer.myEmotionAnalyzer.analyze_from_file(str(resume_file))
-    
-    # Envoie l'émotion au frontend AVANT l'audio
+    # ========== ÉMOTION RÉCUPÉRÉE DIRECTEMENT ==========
+    # L'émotion est déjà générée avec la réponse, pas besoin d'appel séparé
     socketio.emit("emotion_update", {
         "emotion": emotion_data["emotion"],
         "intensity": emotion_data["intensite"]
@@ -143,6 +143,7 @@ def handle_new_transcript(msg, ObjLlama):
     print(f"[Backend] Émotion envoyée au frontend : {emotion_data}")
     # ====================================================
 
+    resume_file = file_manager.sub_resume_dir / "transcript_final_resume.txt"
     milo_wav = tts.myTTS.text_to_speech(resume_file, file_manager.milo_wav_response_dir)
     milo_webm = webm_to_wav_converter.convert_to_webm(
         milo_wav,
@@ -163,13 +164,14 @@ def handle_new_question(msg, ObjTranscriber):
 
 def handle_new_response(msg, ObjLlama):
     file_path = msg["filepath"]
-    output_name=ObjLlama.generate_from_file(Path(file_path),True,file_manager.milo_response_dir)
+    # Génère la réponse ET l'émotion en un seul appel
+    result = ObjLlama.generate_from_file(Path(file_path), True, file_manager.milo_response_dir, include_emotion=True)
     
-    # ========== ANALYSE ÉMOTIONNELLE POUR QUESTION (NOUVEAU) ==========
-    response_file = file_manager.milo_response_dir / output_name
-    emotion_data = emotion_analyzer.myEmotionAnalyzer.analyze_from_file(str(response_file))
+    # result est maintenant un tuple (nom_fichier, emotion_dict)
+    output_name, emotion_data = result
     
-    # Envoie l'émotion au frontend AVANT l'audio
+    # ========== ÉMOTION RÉCUPÉRÉE DIRECTEMENT ==========
+    # L'émotion est déjà générée avec la réponse, pas besoin d'appel séparé
     socketio.emit("emotion_update", {
         "emotion": emotion_data["emotion"],
         "intensity": emotion_data["intensite"]
@@ -177,6 +179,7 @@ def handle_new_response(msg, ObjLlama):
     print(f"[Backend] Émotion (question) envoyée : {emotion_data}")
     # ==================================================================
     
+    response_file = file_manager.milo_response_dir / output_name
     milo_response_wav = tts.myTTS.text_to_speech(response_file, file_manager.milo_wav_question_response_dir)
     socketio.emit("new_response_audio", {"filename": os.path.basename(milo_response_wav)})
 

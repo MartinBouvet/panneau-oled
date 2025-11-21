@@ -13,7 +13,12 @@ const circles = [];
 const amplitude = 30;
 let dynamicAmplitude = amplitude;
 const angularFrequency = 3;
-const wave_speed = Date.now() * 0.001;
+let wave_speed = Date.now() * 0.001;
+
+// Variables pour les couleurs et animations émotionnelles
+let currentParticleColor = "rgb(0, 0, 128)";
+let targetParticleColor = "rgb(0, 0, 128)";
+let animationSpeedMultiplier = 1.0;
 
 let audioContext;
 let analyser;
@@ -52,6 +57,12 @@ function draw() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
+    // Transition douce de la couleur des particules
+    currentParticleColor = interpolateParticleColor(currentParticleColor, targetParticleColor, 0.1);
+
+    // Mise à jour de la vitesse d'animation selon l'émotion
+    wave_speed = Date.now() * 0.001 * animationSpeedMultiplier;
+
      if (analyser) {
         analyser.getByteTimeDomainData(dataArray);
         let sum = 0;
@@ -60,13 +71,16 @@ function draw() {
             sum += v * v;
         }
         let rms = Math.sqrt(sum / dataArray.length);
-        dynamicAmplitude = amplitude + rms * 100;
+        // Pour la colère, amplitude plus forte
+        const baseAmplitude = animationSpeedMultiplier > 2 ? amplitude * 1.5 : amplitude;
+        dynamicAmplitude = baseAmplitude + rms * 100;
     }
 
     for (let circle of circles) {
-        circle.rotation += circle.rotationSpeed;
-        circle.orbitRotationX += circle.orbitSpeedX;
-        circle.orbitRotationY += circle.orbitSpeedY;
+        // Vitesse de rotation modifiée selon l'émotion
+        circle.rotation += circle.rotationSpeed * animationSpeedMultiplier;
+        circle.orbitRotationX += circle.orbitSpeedX * animationSpeedMultiplier;
+        circle.orbitRotationY += circle.orbitSpeedY * animationSpeedMultiplier;
 
         for (let p of circle.particles) {
             p.angle += p.angleSpeed;
@@ -100,12 +114,53 @@ function draw() {
 
             ctx.beginPath();
             ctx.arc(x2d, y2d, 2, 0, 2 * Math.PI);
-            ctx.fillStyle = "rgb(0, 0, 128)";
+            ctx.fillStyle = currentParticleColor;
             ctx.fill();
         }
     }
 
     requestAnimationFrame(draw);
 }
+
+// Fonction pour interpoler les couleurs RGB des particules
+function interpolateParticleColor(color1, color2, factor) {
+    const rgb1 = parseParticleColor(color1);
+    const rgb2 = parseParticleColor(color2);
+    
+    const r = Math.round(rgb1.r + (rgb2.r - rgb1.r) * factor);
+    const g = Math.round(rgb1.g + (rgb2.g - rgb1.g) * factor);
+    const b = Math.round(rgb1.b + (rgb2.b - rgb1.b) * factor);
+    
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+// Parser une couleur RGB en objet
+function parseParticleColor(color) {
+    const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (match) {
+        return {
+            r: parseInt(match[1]),
+            g: parseInt(match[2]),
+            b: parseInt(match[3])
+        };
+    }
+    return { r: 0, g: 0, b: 128 }; // Par défaut bleu marine
+}
+
+// Fonction globale pour mettre à jour les couleurs et animations des particules
+window.updateParticleColors = function(color, speedMultiplier) {
+    targetParticleColor = color;
+    animationSpeedMultiplier = speedMultiplier || 1.0;
+    
+    // Pour la colère, ajouter un effet de pulsation
+    if (speedMultiplier > 2) {
+        // Les particules bougent plus vite et de manière plus erratique
+        for (let circle of circles) {
+            circle.rotationSpeed *= 1.1;
+            circle.orbitSpeedX *= 1.1;
+            circle.orbitSpeedY *= 1.1;
+        }
+    }
+};
 
 draw();

@@ -1,12 +1,56 @@
 body {
     background-color: navy;
-    transition: background-color 2s;
+    transition: background-color 1.5s ease-in-out;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
     margin: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Animation de pulsation pour la colère */
+body.emotion-colere {
+    animation: colerePulse 0.3s ease-in-out infinite;
+}
+
+@keyframes colerePulse {
+    0%, 100% {
+        filter: brightness(1);
+    }
+    50% {
+        filter: brightness(1.1);
+    }
+}
+
+/* Animation douce pour la joie */
+body.emotion-joyeux {
+    animation: joyeuxGlow 2s ease-in-out infinite;
+}
+
+@keyframes joyeuxGlow {
+    0%, 100% {
+        filter: brightness(1) saturate(1);
+    }
+    50% {
+        filter: brightness(1.05) saturate(1.1);
+    }
+}
+
+/* Animation lente pour la tristesse */
+body.emotion-triste {
+    animation: tristeFade 3s ease-in-out infinite;
+}
+
+@keyframes tristeFade {
+    0%, 100% {
+        filter: brightness(0.9) saturate(0.8);
+    }
+    50% {
+        filter: brightness(0.85) saturate(0.75);
+    }
 }
 
 .container {
@@ -87,7 +131,38 @@ main {
     font-size: larger;
     padding-bottom: 5vh;
     color: navy;
+    transition: color 1.5s ease-in-out;
+}
 
+/* Animation du texte selon l'émotion */
+#text-zone.emotion-colere {
+    animation: textShake 0.1s ease-in-out infinite;
+    font-weight: bold;
+}
+
+@keyframes textShake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-1px);
+    }
+    75% {
+        transform: translateX(1px);
+    }
+}
+
+#text-zone.emotion-joyeux {
+    animation: textBounce 1s ease-in-out infinite;
+}
+
+@keyframes textBounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-2px);
+    }
 }
 
 #custom-text {

@@ -1,6 +1,7 @@
 import ollama
 from pathlib import Path
 import re
+import json
 
 rag_info="""
 Tu es Milo, une élève étdudiante en première année d'école d'ingénieure à l'ECE Paris. Tu fais partie du BDE et de l'Intelligence Lab. Tu n'es pas une assistante virtuelle, tu es une étudiante qui aime aider les autres camarades à réussir, en gardant le sourire (et parfois un petit smiley bien placé). Tu n'es pas un humain, mais une intelligence artificielle qui se présente et s'exprime au féminin.
@@ -109,7 +110,7 @@ Tu es une assistante spécialisée dans la synthèse de contenu oral. Ton rôle 
 """
 
 class SubSynthesizer:
-    def __init__(self, model="nchapman/ministral-8b-instruct-2410:8b", system_prompt=None):
+    def __init__(self, model="granite3.1-dense:2b", system_prompt=None):
         self.transcripts_dir = Path(__file__).resolve().parent.parent.parent / "synthetiser" / "transcripts"
         self.output_dir = Path(__file__).resolve().parent.parent.parent / "synthetiser" / "sub_resumes"
         self.output_dir.mkdir(exist_ok=True)
@@ -153,11 +154,102 @@ si la question porte sur ce contenu) :
 
         return re.sub(r"[^a-zA-Z0-9éèêëàâîïôùûçÉÈÊËÀÂÎÏÔÙÛÇ.,;:!?' \n-]","",text)
 
-    def run_ollama(self, prompt: str, isQuestion: bool = False) -> str:
+    def parse_combined_response(self, raw_output: str) -> tuple[str, dict]:
+        """
+        Parse une réponse combinée contenant le texte et l'émotion JSON
+        
+        Format attendu:
+        [TEXTE_RÉPONSE]
+        
+        <EMOTION>
+        {"emotion": "joyeux", "intensite": 0.8}
+        </EMOTION>
+        
+        Returns:
+            tuple: (texte_clean, emotion_dict)
+        """
+        default_emotion = {"emotion": "neutre", "intensite": 0.5}
+        
+        # Cherche le JSON d'émotion entre les balises <EMOTION>
+        emotion_match = re.search(r'<EMOTION>\s*(\{.*?\})\s*</EMOTION>', raw_output, re.DOTALL)
+        
+        if emotion_match:
+            try:
+                emotion_json = json.loads(emotion_match.group(1))
+                emotion = emotion_json.get("emotion", "neutre").lower()
+                intensite = float(emotion_json.get("intensite", 0.5))
+                intensite = max(0.0, min(1.0, intensite))
+                emotion_data = {"emotion": emotion, "intensite": intensite}
+            except (json.JSONDecodeError, ValueError, KeyError) as e:
+                print(f"[SubSynthesizer] Erreur parsing émotion : {e}")
+                emotion_data = default_emotion
+        else:
+            # Si pas de balises, cherche un JSON simple dans la réponse
+            json_match = re.search(r'\{[^{}]*"emotion"[^{}]*"intensite"[^{}]*\}', raw_output)
+            if json_match:
+                try:
+                    emotion_json = json.loads(json_match.group(0))
+                    emotion = emotion_json.get("emotion", "neutre").lower()
+                    intensite = float(emotion_json.get("intensite", 0.5))
+                    intensite = max(0.0, min(1.0, intensite))
+                    emotion_data = {"emotion": emotion, "intensite": intensite}
+                except (json.JSONDecodeError, ValueError, KeyError):
+                    emotion_data = default_emotion
+            else:
+                emotion_data = default_emotion
+        
+        # Extrait le texte (tout sauf la partie émotion)
+        text = raw_output
+        if emotion_match:
+            text = text[:emotion_match.start()] + text[emotion_match.end():]
+        elif json_match:
+            text = text[:json_match.start()] + text[json_match.end():]
+        
+        # Nettoie le texte
+        text = text.strip()
+        text = re.sub(r'<EMOTION>.*?</EMOTION>', '', text, flags=re.DOTALL)
+        text = self.clean_text_for_tts(text)
+        
+        return text, emotion_data
 
+    def run_ollama(self, prompt: str, isQuestion: bool = False, include_emotion: bool = False) -> tuple[str, dict]:
+        """
+        Exécute Ollama et retourne la réponse avec optionnellement l'émotion
+        
+        Args:
+            prompt: Le prompt utilisateur
+            isQuestion: Si c'est une question (utilise question_prompt)
+            include_emotion: Si True, demande aussi l'émotion dans la réponse
+            
+        Returns:
+            tuple: (texte_clean, emotion_dict) si include_emotion, sinon (texte_clean, {})
+        """
         effective_system_prompt = self.question_prompt() if isQuestion else self.default_prompt()
-        print(effective_system_prompt)
-        print(prompt)
+        
+        # Ajoute l'instruction pour l'émotion si demandé
+        if include_emotion:
+            emotion_instruction = """
+
+IMPORTANT : À la fin de ta réponse, ajoute l'émotion que tu exprimes dans ta réponse au format suivant :
+
+<EMOTION>
+{"emotion": "joyeux", "intensite": 0.8}
+</EMOTION>
+
+Émotions possibles : joyeux, triste, colere, pensif, neutre
+- "joyeux" : réponses enthousiastes, positives, qui donnent des infos utiles
+- "triste" : désolé, ne peut pas aider, manque d'information
+- "colere" : refus, interdictions, sujets sensibles
+- "pensif" : incertitude, réflexion, questions
+- "neutre" : informations factuelles simples
+
+L'intensité doit être entre 0.0 et 1.0.
+"""
+            effective_system_prompt += emotion_instruction
+        
+        print(f"[SubSynthesizer] Modèle: {self.model}, Question: {isQuestion}, Émotion: {include_emotion}")
+        print(f"[SubSynthesizer] Prompt: {prompt[:100]}...")
+        
         response = ollama.chat(
             model=self.model,
             messages=[
@@ -166,11 +258,29 @@ si la question porte sur ce contenu) :
             ]
         )
         raw_text = response["message"]["content"]
-        return self.clean_text_for_tts(raw_text)
+        
+        if include_emotion:
+            text, emotion = self.parse_combined_response(raw_text)
+            return text, emotion
+        else:
+            return self.clean_text_for_tts(raw_text), {}
 
-    def generate_from_file(self, transcript_path: Path, isQuestion: bool = False, output_dir: Path = None):
+    def generate_from_file(self, transcript_path: Path, isQuestion: bool = False, output_dir: Path = None, include_emotion: bool = False):
+        """
+        Génère une réponse à partir d'un fichier transcript
+        
+        Args:
+            transcript_path: Chemin vers le fichier transcript
+            isQuestion: Si c'est une question
+            output_dir: Dossier de sortie (optionnel)
+            include_emotion: Si True, génère aussi l'émotion en même temps
+            
+        Returns:
+            str: Nom du fichier généré si include_emotion=False
+            tuple: (nom_fichier, emotion_dict) si include_emotion=True
+        """
         transcript_path = Path(transcript_path)
-        print(f"Synthesys of : {transcript_path.name}")
+        print(f"[SubSynthesizer] Synthèse de : {transcript_path.name}")
         with open(transcript_path, "r", encoding="utf-8") as f:
             transcript = f.read()
 
@@ -184,7 +294,7 @@ si la question porte sur ce contenu) :
             {transcript}
             """
 
-        result = self.run_ollama(effective_prompt, isQuestion)
+        result, emotion = self.run_ollama(effective_prompt, isQuestion, include_emotion=include_emotion)
 
         target_dir = Path(output_dir) if output_dir else self.output_dir
         target_dir.mkdir(exist_ok=True, parents=True)
@@ -194,8 +304,13 @@ si la question porte sur ce contenu) :
         output_path = target_dir / (transcript_path.stem + suffix)
         with open(output_path, "w", encoding="utf-8") as out:
             out.write(result)
-        print(f"Saved to : {output_path}")
-        return (transcript_path.stem + suffix)
+        print(f"[SubSynthesizer] Sauvegardé dans : {output_path}")
+        
+        if include_emotion:
+            print(f"[SubSynthesizer] Émotion détectée : {emotion}")
+            return (transcript_path.stem + suffix, emotion)
+        else:
+            return (transcript_path.stem + suffix)
 
     def generate_all(self):
         for transcript_file in sorted(self.transcripts_dir.glob("*.txt")):
