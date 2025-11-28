@@ -1,0 +1,22 @@
+2.00 - 4.50: Today's lesson will focus on circuit analysis. We'll cover basic principles and their applications in electrical circuits.
+
+
+3.00 - 6.00: Our primary tool for this topic will be Ohm's law, which relates voltage V, current I, and resistance R as VIR. Remember, resistance is measured in ohms .
+
+
+4.50 - 7.00: A key concept to grasp is the relationship between voltage and power P  VI in a circuit. This tells us how much energy an electric current can do work in a given time.
+
+
+6.00 - 8.50: We'll also discuss Kirchhoff's laws, which help analyze complex circuits. The Junction Rule states that the sum of currents entering a junction equals the sum of currents leaving it, while the Loop Rule asserts that the algebraic sum of voltages around any closed loop is zero.
+
+
+7.00 - 9.50: Be prepared to apply these principles in exercises. You'll need to calculate resistances and currents for various circuit configurations, and then determine power consumption or voltage drops across components.
+
+
+8.50 - 11.00: Don't forget the importance of units conversion. Always ensure your answers have consistent units e.g., convert volts to amperes if necessary.
+
+
+9.50 - 12.00: I encourage you to practice with additional examples in your workbook. This will solidify your understanding and reinforce key concepts.
+
+
+11.00 - 13.50: Tomorrow, we'll delve into more advanced topics like Kirchhoff's voltage law and capacitors. Stay tuned!

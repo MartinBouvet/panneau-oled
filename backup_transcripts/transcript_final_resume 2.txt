@@ -1,0 +1,21 @@
+3.00 - 7.50: Professeur a introduit le sujet d'étude, l'histoire de l'Egypte ancienne.
+
+            
+8.00 - 12.00: Mention des pharaons Khéty I et Néfertari comme figures clés.
+             
+12.00 - 17.00: Développement sur l'architecture pyramidale, avec des exemples de la Grande Pyramide et de la Petite Pyramide du Gouverneur.
+
+            
+17.00 - 21.50: Discussion sur les temples, notamment le Temple de Karnak et celui de Louxor, avec descriptions détaillées des structures.
+
+            
+21.50 - 36.00: Pharaon Tutankamon souligné comme un monarque exceptionnel, étant associé à l'Amour et au Soleil par les égyptiens.
+
+             
+36.00 - 40.00: Bref aperçu de la culture religieuse de l'époque, mentionnant le culte d'Horus et du dieu Amon-Ra.
+
+            
+40.00 - 42.50: Professeur martèle l'importance de la conservation des sites historiques, suggérant qu'une visite virtuelle ou une recherche approfondie est encouragée.
+
+            
+emotion: joyeux, intensite: 0.9
